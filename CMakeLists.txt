@@ -28,6 +28,11 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core)
 
     qt_add_executable(Data_Structures_Algo_Training
         MANUAL_FINALIZATION
@@ -41,6 +46,13 @@ find_package(Qt6 REQUIRED COMPONENTS Core)
         src/ui/widgets/visualization/base/graphics_node.h src/ui/widgets/visualization/base/graphics_node.cpp
         src/ui/widgets/visualization/base/graphics_edge.h src/ui/widgets/visualization/base/graphics_edge.cpp
         src/ui/widgets/intelli_sense_widget/LSP/LSP_client.h src/ui/widgets/intelli_sense_widget/LSP/LSP_client.cpp
+        src/ui/widgets/intelli_sense_widget/LSP/cpp_lsp_client.h src/ui/widgets/intelli_sense_widget/LSP/cpp_lsp_client.cpp
+        src/ui/widgets/intelli_sense_widget/LSP/java_lsp_client.h src/ui/widgets/intelli_sense_widget/LSP/java_lsp_client.cpp
+        src/ui/widgets/intelli_sense_widget/Editor/code_editor_widget.h src/ui/widgets/intelli_sense_widget/Editor/code_editor_widget.cpp
+        src/ui/widgets/intelli_sense_widget/Editor/syntax_highlighter.h src/ui/widgets/intelli_sense_widget/Editor/syntax_highlighter.cpp
+        src/ui/widgets/intelli_sense_widget/Editor/auto_complete_widget.h src/ui/widgets/intelli_sense_widget/Editor/auto_complete_widget.cpp
+        src/ui/widgets/intelli_sense_widget/integration/ide_integrator.h src/ui/widgets/intelli_sense_widget/integration/ide_integrator.cpp
+        src/ui/widgets/intelli_sense_widget/integration/settings_manager.h src/ui/widgets/intelli_sense_widget/integration/settings_manager.cpp
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET Data_Structures_Algo_Training APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
@@ -69,6 +81,11 @@ target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Core)
 target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Widgets)
 target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Widgets)
 target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Widgets)
+target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Core)
+target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Core)
+target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Widgets)
+target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Widgets)
+target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Core)
 target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Core)
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
