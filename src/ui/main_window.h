@@ -3,12 +3,18 @@
 
 #include <QMainWindow>
 #include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QGridLayout>
 #include <QComboBox>
 #include <QPushButton>
 #include <QDebug>
+#include <QSpinBox>
 
 #include "widgets/visualization/binary_tree_visualization.h"
 #include "../core/generators/binary_tree_generator.h"
+#include "widgets/intelli_sense_widget/Editor/code_editor_widget.h"
+
+#include "styles.h"
 
 class MainWindow : public QMainWindow
 {
