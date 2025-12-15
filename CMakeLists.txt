@@ -13,15 +13,34 @@ find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 
 set(PROJECT_SOURCES
-        main.cpp
-        mainwindow.cpp
-        mainwindow.h
+        src/main.cpp
+        src/ui/main_window.cpp
+        src/ui/main_window.h
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
+    find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core)
+
     qt_add_executable(Data_Structures_Algo_Training
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
+
+        src/ui/widgets/visualization/binary_tree_visualization.h src/ui/widgets/visualization/binary_tree_visualization.cpp
+        src/core/internal/binary_tree/binary_tree.h src/core/internal/binary_tree/binary_tree.cpp
+        src/core/internal/binary_tree/tree_node.h src/core/internal/binary_tree/tree_node.cpp
+        src/core/generators/binary_tree_generator.h src/core/generators/binary_tree_generator.cpp
+        src/ui/widgets/visualization/base/visualizer_base.h src/ui/widgets/visualization/base/visualizer_base.cpp
+        src/ui/widgets/visualization/base/graphics_node.h src/ui/widgets/visualization/base/graphics_node.cpp
+        src/ui/widgets/visualization/base/graphics_edge.h src/ui/widgets/visualization/base/graphics_edge.cpp
+        src/ui/widgets/intelli_sense_widget/LSP/LSP_client.h src/ui/widgets/intelli_sense_widget/LSP/LSP_client.cpp
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET Data_Structures_Algo_Training APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
@@ -42,6 +61,15 @@ else()
 endif()
 
 target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Widgets)
+target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Widgets)
+target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Core)
+target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Core)
+target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Core)
+target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Widgets)
+target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Widgets)
+target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Widgets)
+target_link_libraries(Data_Structures_Algo_Training PRIVATE Qt6::Core)
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
