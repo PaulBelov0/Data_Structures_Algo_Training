@@ -31,6 +31,7 @@
 
 #include "../integration/ide_integrator.h"
 #include "../LSP/LSP.hpp"
+#include "auto_complete_widget.h"
 
 enum LanguageMode {
     ModeCpp,
@@ -98,6 +99,7 @@ private:
     LSPClient::Language getCurrentLSPLanguage() const;
     QString getCurrentFilePath() const;
     void updateStatus(const QString& message, const QColor& color = Qt::black);
+    bool eventFilter(QObject* obj, QEvent* event);
 
     // UI элементы
     QSplitter* m_mainSplitter;
@@ -110,6 +112,8 @@ private:
     // LSP
     QPointer<LSPClient> m_lspClient;
     IDEIntegrator* m_ideIntegrator;
+
+    QPointer<AutoCompleteWidget> m_autoCompleteWidget;
 
     // Состояние
     LanguageMode m_currentLanguage;

@@ -2,66 +2,60 @@
 #include <QStandardPaths>
 #include <QFileInfo>
 #include <QDir>
+#include <QSettings>
 
 CppLSPClient::CppLSPClient(QObject* parent)
     : LSPClient(parent)
-    , m_cppStandard("c++17")
 {
     m_language = LanguageCpp;
 
-    // Автоматический поиск clangd
-    if (m_serverPath.isEmpty()) {
+    QSettings settings;
+    QString savedPath = settings.value("LSP/Cpp/ClangdPath", "").toString();
+
+    if (!savedPath.isEmpty() && QFileInfo::exists(savedPath)) {
+        m_serverPath = savedPath;
+    } else {
+        QString clangdPath;
+
 #ifdef Q_OS_WIN
-        QStringList possiblePaths = {
-            "clangd.exe",
-            "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\Llvm\\bin\\clangd.exe",
-            "C:\\Program Files\\LLVM\\bin\\clangd.exe",
-            QStandardPaths::findExecutable("clangd")
-        };
+        clangdPath = QStandardPaths::findExecutable("clangd.exe");
+        if (clangdPath.isEmpty()) {
+            clangdPath = "C:\\Program Files\\LLVM\\bin\\clangd.exe";
+        }
 #else
-        QStringList possiblePaths = {
-            "clangd",
-            "/usr/bin/clangd",
-            "/usr/local/bin/clangd"
-        };
+        clangdPath = QStandardPaths::findExecutable("clangd");
 #endif
 
-        for (const QString& path : possiblePaths) {
-            if (QFileInfo::exists(path)) {
-                m_serverPath = path;
-                break;
-            }
+        if (QFileInfo::exists(clangdPath)) {
+            m_serverPath = clangdPath;
+            settings.setValue("LSP/Cpp/ClangdPath", clangdPath);
         }
     }
+}
+
+CppLSPClient::~CppLSPClient()
+{
+    if (installer) installer->deleteLater();
 }
 
 QStringList CppLSPClient::getDefaultServerArgs() const
 {
     QStringList args;
-
-    // Логирование
     args << "--log=verbose";
     args << "--pretty";
 
-    // Команда компиляции если есть
     if (!m_compileCommandsPath.isEmpty()) {
-        args << QString("--compile-commands-dir=%1").arg(m_compileCommandsPath);
+        args << "--compile-commands-dir=" + m_compileCommandsPath;
     }
 
-    // Предельное количество запросов
     args << "--limit-results=100";
-
-    // Background index
     args << "--background-index";
-
     return args;
 }
 
 QJsonObject CppLSPClient::getDefaultInitOptions() const
 {
     QJsonObject clangdParams;
-
-    // Настройки clangd
     clangdParams["compilationDatabasePath"] = m_compileCommandsPath;
 
     QJsonObject fallbackFlags;
@@ -75,71 +69,43 @@ QJsonObject CppLSPClient::getDefaultInitOptions() const
     includeFlags.append("-Wall");
     includeFlags.append("-Wextra");
 
-    fallbackFlags["compilers"] = QJsonArray{"/usr/bin/gcc", "/usr/bin/clang"};
     fallbackFlags["flags"] = includeFlags;
-
     clangdParams["fallbackFlags"] = fallbackFlags;
 
-    return QJsonObject{
-        {"clangd", clangdParams}
-    };
+    return QJsonObject{{"clangd", clangdParams}};
 }
 
 void CppLSPClient::applyLanguageSpecificSettings(QJsonObject& initOptions)
 {
-    // Добавляем настройки для C++
     QJsonObject clangdSettings = initOptions["clangd"].toObject();
 
     if (clangdSettings.isEmpty()) {
         clangdSettings = getDefaultInitOptions()["clangd"].toObject();
     }
 
-    // Добавляем дополнительные флаги
     QJsonObject fallbackFlags = clangdSettings["fallbackFlags"].toObject();
     QJsonArray flags = fallbackFlags["flags"].toArray();
 
-    // Флаги для работы с Qt если нужно
     flags.append("-DQT_CORE_LIB");
     flags.append("-DQT_GUI_LIB");
     flags.append("-DQT_WIDGETS_LIB");
 
     fallbackFlags["flags"] = flags;
     clangdSettings["fallbackFlags"] = fallbackFlags;
-
     initOptions["clangd"] = clangdSettings;
 }
 
-void CppLSPClient::setCompilationDatabasePath(const QString& path)
+void CppLSPClient::installClangd()
 {
-    m_compileCommandsPath = path;
-}
-
-void CppLSPClient::setCompileCommands(const QJsonArray& commands)
-{
-    m_compileCommands = commands;
-
-    // Сохраняем в файл compile_commands.json
-    if (!m_rootPath.isEmpty()) {
-        QString compileCommandsPath = m_rootPath + "/compile_commands.json";
-        QFile file(compileCommandsPath);
-        if (file.open(QIODevice::WriteOnly)) {
-            QJsonDocument doc(commands);
-            file.write(doc.toJson());
-            file.close();
-
-            m_compileCommandsPath = m_rootPath;
-        }
+    if (!installer) {
+        installer = new ClangdInstaller(this);
+        connect(installer, &ClangdInstaller::finished, this, [this](LSPInstaller::InstallResult result, const QString& msg) {
+            if (result == LSPInstaller::Success) {
+                m_serverPath = installer->getInstallPath();
+                QSettings().setValue("LSP/Cpp/ClangdPath", m_serverPath);
+                restart();
+            }
+        });
     }
-}
-
-void CppLSPClient::addIncludePath(const QString& path)
-{
-    if (!m_includePaths.contains(path)) {
-        m_includePaths.append(path);
-    }
-}
-
-void CppLSPClient::setCppStandard(const QString& standard)
-{
-    m_cppStandard = standard;
+    installer->install();
 }

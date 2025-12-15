@@ -192,6 +192,7 @@ protected:
     QString m_rootPath;
     Language m_language;
     QString m_serverPath;
+    QStringList m_serverArgs;
 
 private slots:
     void onProcessReadyRead();
@@ -211,7 +212,6 @@ private:
 
     QProcess* m_process;
     State m_state;
-    QStringList m_serverArgs;
     QJsonObject m_initOptions;
     QString m_errorString;
 

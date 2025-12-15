@@ -108,12 +108,16 @@ void CodeEditorWidget::setupUI()
     sidebarLayout->setSpacing(5);
 
     // Список автодополнения
-    m_completionList = new QListWidget(this);
-    m_completionList->setMaximumHeight(150);
-    m_completionList->setVisible(false);
+    m_autoCompleteWidget = new AutoCompleteWidget(this);
+    m_autoCompleteWidget->hide();
 
-    connect(m_completionList, &QListWidget::itemDoubleClicked,
-            this, &CodeEditorWidget::onCompletionsDoubleClicked);
+    // Подключаем сигналы
+    connect(m_autoCompleteWidget, &AutoCompleteWidget::completionSelected,
+            this, &CodeEditorWidget::insertCompletion);
+    connect(m_autoCompleteWidget, &AutoCompleteWidget::canceled,
+            [this]() {
+                m_editor->setFocus();
+            });
 
     // Список проблем
     QLabel* problemsLabel = new QLabel("Problems:", this);
@@ -197,41 +201,15 @@ void CodeEditorWidget::loadTemplate(LanguageMode mode)
     if (mode == ModeCpp) {
         templateCode =
             R"(#include <iostream>
-#include <vector>
-#include <algorithm>
-using namespace std;
-class TreeNode {
-public:
-    int val;
-    TreeNode* left;
-    TreeNode* right;
 
-    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
-};
-class BinaryTree {
-private:
-    TreeNode* root;
+void balance()
+{
+    //... Your code
+}
 
-public:
-    BinaryTree() : root(nullptr) {}
-
-    void insert(int val) {
-        // TODO: Implement insertion
-    }
-
-    void balance() {
-        // TODO: Implement tree balancing
-    }
-};
 int main() {
-    BinaryTree tree;
 
-    // Example usage
-    for (int i = 0; i < 10; i++) {
-        tree.insert(rand() % 100);
-    }
-
-    tree.balance();
+    balance();
 
     return 0;
 })";
@@ -240,43 +218,14 @@ int main() {
     {
         templateCode =
             R"(import java.util.*;
-class TreeNode {
-    int val;
-    TreeNode left;
-    TreeNode right;
 
-    TreeNode(int x) {
-        val = x;
-        left = null;
-        right = null;
-    }
-}
-class BinaryTree {
-    private TreeNode root;
-
-    public BinaryTree() {
-        root = null;
-    }
-
-    public void insert(int val) {
-        // TODO: Implement insertion
-    }
-
-    public void balance() {
-        // TODO: Implement tree balancing
-    }
-}
 public class Main {
     public static void main(String[] args) {
-        BinaryTree tree = new BinaryTree();
+        balance();
+    }
 
-        // Example usage
-        Random rand = new Random();
-        for (int i = 0; i < 10; i++) {
-            tree.insert(rand.nextInt(100));
-        }
-
-        tree.balance();
+    private void balance(){
+    //...Your code
     }
 })";
     }
@@ -408,13 +357,19 @@ void CodeEditorWidget::formatDocument()
 
 void CodeEditorWidget::connectToLSP()
 {
+    qDebug() << "=== Starting LSP Connection ===";
+    qDebug() << "Current language:" << m_currentLanguage;
+    qDebug() << "Project path:" << m_projectPath;
+    qDebug() << "Current file:" << m_currentFile;
+
     if (m_lspClient) {
         if (m_lspClient->isConnected()) {
+            qDebug() << "Already connected, state:" << m_lspClient->state();
             updateStatus("Already connected", Qt::blue);
             return;
         }
 
-        // Переподключаем
+        qDebug() << "Stopping existing LSP client";
         m_lspClient->stop();
         delete m_lspClient;
         m_lspClient = nullptr;
@@ -422,60 +377,85 @@ void CodeEditorWidget::connectToLSP()
 
     // Создаем соответствующий LSP клиент
     LSPClient::Language lspLang = getCurrentLSPLanguage();
+    qDebug() << "LSP Language enum:" << lspLang;
 
+    // Показываем, какой клиент создаётся
+    QString clientName = "Unknown";
     if (lspLang == LSPClient::LanguageCpp)
     {
-        m_lspClient.clear();
+        clientName = "C++";
         m_lspClient = new CppLSPClient(this);
+        qDebug() << "Created CppLSPClient";
 
-        if (m_lspClient->isConnected())
-            updateStatus("LSP Connected successful", Qt::green);
-        else
-            updateStatus("C++ LSP client creation not implemented", Qt::red);
+        // Проверяем путь к clangd
+        CppLSPClient* cppClient = qobject_cast<CppLSPClient*>(m_lspClient);
+        if (cppClient) {
+            qDebug() << "Clangd path:" << cppClient->getServerPath();
+            qDebug() << "Clangd args:" << cppClient->getServerArgs();
 
-        return;
+            // ЕСЛИ CLANGD НЕ НАЙДЕН - ПРЕДЛАГАЕМ УСТАНОВКУ
+            if (cppClient->getServerPath().isEmpty()) {
+                qDebug() << "Clangd not found, offering installation";
+
+                QMessageBox msgBox;
+                msgBox.setWindowTitle("Clangd Not Found");
+                msgBox.setText("Clangd (C++ Language Server) not found.");
+                msgBox.setInformativeText("Install automatically?");
+                msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+                msgBox.setDefaultButton(QMessageBox::Yes);
+
+                if (msgBox.exec() == QMessageBox::Yes) {
+                    // Подключаем сигнал завершения установки
+                    connect(cppClient, &CppLSPClient::clangdInstallationFinished,
+                            this, [this](bool success, const QString& path) {
+                                if (success) {
+                                    qDebug() << "Clangd installed, reconnecting...";
+                                    QTimer::singleShot(2000, this, &CodeEditorWidget::connectToLSP);
+                                }
+                            });
+
+                    // Запускаем установку
+                    cppClient->installClangd();
+                    updateStatus("Installing Clangd...", QColor(255, 165, 0));
+                    return; // Выходим - установка запущена
+                } else {
+                    updateStatus("Clangd installation cancelled", Qt::yellow);
+                    delete m_lspClient;
+                    m_lspClient = nullptr;
+                    return;
+                }
+            }
+        }
     }
     else if (lspLang == LSPClient::LanguageJava)
     {
-        m_lspClient.clear();
+        clientName = "Java";
         m_lspClient = new JavaLSPClient(this);
+        qDebug() << "Created JavaLSPClient";
 
-        if (m_lspClient->isConnected())
-            updateStatus("LSP Connected successful", Qt::green);
-        else
-            updateStatus("Java LSP client creation not implemented", Qt::red);
-
-        return;
+        JavaLSPClient* javaClient = qobject_cast<JavaLSPClient*>(m_lspClient);
+        if (javaClient) {
+            qDebug() << "JDT LS path:" << javaClient->getServerPath();
+            qDebug() << "Java home:" << javaClient->getJavaHome();
+        }
     }
     else
     {
+        qWarning() << "Unknown language for LSP";
         updateStatus("Unknown language for LSP", Qt::red);
         return;
     }
 
     if (!m_lspClient) {
+        qCritical() << "Failed to create LSP client";
         updateStatus("Failed to create LSP client", Qt::red);
         return;
     }
 
-
     // Подключаем сигналы
-    connect(m_lspClient, &LSPClient::completionReady, [this, lspLang](const QString& fileUri, int line,
-                                                                      int character, const QList<LSPCompletionItem>& items){
-        onCompletionReady(lspLang, fileUri, line, character, items);
-    });
-
-    connect(m_lspClient, &LSPClient::hoverReady, [this, lspLang](const QString& fileUri, int line,
-                                                        int character, const QString& content){
-        onHoverReady(lspLang, fileUri, line, character, content);
-    });
-
-    connect(m_lspClient, &LSPClient::diagnosticsUpdated, [this, lspLang](const QString& fileUri, const QJsonArray& diagnostics){
-        onDiagnosticsUpdated(lspLang, fileUri, diagnostics);
-    });
-
     connect(m_lspClient, &LSPClient::stateChanged,
             [this](LSPClient::State state) {
+                qDebug() << "LSP State changed to:" << state;
                 bool connected = (state == LSPClient::Connected);
                 onLSPConnected(connected);
 
@@ -483,29 +463,62 @@ void CodeEditorWidget::connectToLSP()
                     updateStatus("LSP error: " + m_lspClient->errorString(), Qt::red);
                 }
             });
+
     connect(m_lspClient, &LSPClient::logMessage,
-            this, &CodeEditorWidget::onLogMessage);
+            [this](const QString& message, const QString& type) {
+                qDebug() << "LSP [" << type << "]:" << message;
+                if (type == "error") {
+                    updateStatus("LSP: " + message, Qt::red);
+                }
+            });
+
     connect(m_lspClient, &LSPClient::errorOccurred,
             [this](const QString& error) {
+                qWarning() << "LSP error:" << error;
                 updateStatus("LSP error: " + error, Qt::red);
                 emit errorOccurred(error);
             });
 
-    // Запускаем LSP клиент
+    connect(m_lspClient, &LSPClient::completionReady, [this, lspLang](const QString& fileUri, int line, int character, const QList<LSPCompletionItem>& items){
+        onCompletionReady(lspLang, fileUri, line, character, items);
+    });
+
+    connect(m_lspClient, &LSPClient::diagnosticsUpdated, [this, lspLang](const QString& fileUri, const QJsonArray& diagnostics){
+        onDiagnosticsUpdated(lspLang, fileUri, diagnostics);
+    });
+
+    connect(m_lspClient, &LSPClient::hoverReady, [this, lspLang](const QString& fileUri, int line, int character, const QString& content){
+        onHoverReady(lspLang, fileUri, line, character, content);
+    });
+
+    qDebug() << "Attempting to start LSP client for" << clientName;
+
     QString workspace = m_projectPath.isEmpty() ? QDir::currentPath() : m_projectPath;
+    qDebug() << "Workspace:" << workspace;
 
     if (m_lspClient->start(workspace)) {
-        updateStatus("Connecting to LSP...", QColor(255, 165, 0)); // Оранжевый
+        qDebug() << "LSP client start() returned true";
+        updateStatus("Connecting to " + clientName + " LSP...", QColor(255, 165, 0));
 
-        // Открываем текущий документ
-        QTimer::singleShot(1000, this, [this]() {
-            if (m_lspClient && m_lspClient->isConnected()) {
-                m_lspClient->openDocument(m_currentFile, m_editor->toPlainText());
-                updateStatus("LSP connected", Qt::darkGreen);
+        // Проверяем состояние процесса
+        QTimer::singleShot(1000, this, [this, clientName]() {
+            qDebug() << "Checking LSP state after 1 second...";
+            if (m_lspClient) {
+                qDebug() << "Current state:" << m_lspClient->state();
+                qDebug() << "Is connected:" << m_lspClient->isConnected();
+                qDebug() << "Error string:" << m_lspClient->errorString();
+
+                if (m_lspClient->isConnected()) {
+                    // Открываем текущий документ
+                    QString code = m_editor->toPlainText();
+                    m_lspClient->openDocument(m_currentFile, code);
+                    updateStatus(clientName + " LSP connected", Qt::darkGreen);
+                }
             }
         });
     } else {
-        updateStatus("Failed to start LSP: " + m_lspClient->errorString(), Qt::red);
+        qWarning() << "LSP client start() failed";
+        updateStatus("Failed to start " + clientName + " LSP: " + m_lspClient->errorString(), Qt::red);
     }
 }
 
@@ -725,33 +738,34 @@ void CodeEditorWidget::updateEditorStyle()
 
 void CodeEditorWidget::showCompletionPopup(const QList<LSPCompletionItem>& items)
 {
-    m_completionList->clear();
-
-    for (const LSPCompletionItem& item : items) {
-        QString displayText = item.label;
-        if (!item.detail.isEmpty()) {
-            displayText += " - " + item.detail;
-        }
-
-        QListWidgetItem* listItem = new QListWidgetItem(displayText, m_completionList);
-
-        // Можно установить иконки в зависимости от типа
-        // listItem->setIcon(getIconForCompletionType(item.kind)); //todo
+    if (items.isEmpty()) {
+        m_autoCompleteWidget->hideCompletions();
+        return;
     }
 
-    if (m_completionList->count() > 0) {
-        m_completionList->setCurrentRow(0);
-        m_completionList->setVisible(true);
-        m_completionList->setFocus();
-    } else {
-        m_completionList->setVisible(false);
+    // Преобразуем LSPCompletionItem в CompletionItem
+    QList<CompletionItem> completions;
+    for (const LSPCompletionItem& lspItem : items) {
+        CompletionItem item;
+        item.label = lspItem.label;
+        item.detail = lspItem.detail;
+        item.kind = lspItem.kind;
+        item.documentation = lspItem.documentation;
+        completions.append(item);
     }
+
+    // Получаем позицию курсора
+    QTextCursor cursor = m_editor->textCursor();
+    QRect cursorRect = m_editor->cursorRect(cursor);
+
+    // Показываем автодополнение
+    m_autoCompleteWidget->showCompletions(completions, cursorRect, m_editor);
 }
 
 void CodeEditorWidget::insertCompletion(const QString& completion)
 {
     applyCompletion(completion);
-    m_completionList->setVisible(false);
+    m_autoCompleteWidget->hideCompletions();
     m_editor->setFocus();
 }
 
@@ -760,6 +774,31 @@ QString CodeEditorWidget::getCurrentWord() const
     QTextCursor cursor = m_editor->textCursor();
     cursor.select(QTextCursor::WordUnderCursor);
     return cursor.selectedText();
+}
+
+bool CodeEditorWidget::eventFilter(QObject* obj, QEvent* event)
+{
+    if (obj == m_editor && event->type() == QEvent::KeyPress) {
+        QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+
+        // Если автодополнение видимо, обрабатываем навигацию
+        if (m_autoCompleteWidget->isVisible()) {
+            switch (keyEvent->key()) {
+            case Qt::Key_Up:
+            case Qt::Key_Down:
+            case Qt::Key_PageUp:
+            case Qt::Key_PageDown:
+            case Qt::Key_Escape:
+            case Qt::Key_Return:
+            case Qt::Key_Enter:
+            case Qt::Key_Tab:
+                m_autoCompleteWidget->setFocus();
+                QCoreApplication::sendEvent(m_autoCompleteWidget, keyEvent);
+                return true;
+            }
+        }
+    }
+    return QWidget::eventFilter(obj, event);
 }
 
 LSPClient::Language CodeEditorWidget::getCurrentLSPLanguage() const
