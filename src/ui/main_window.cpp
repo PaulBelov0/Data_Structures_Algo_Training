@@ -7,17 +7,22 @@ MainWindow::MainWindow(QWidget *parent)
     QWidget* layer = new QWidget(this);
     setCentralWidget(layer);
 
-    QVBoxLayout* layout = new QVBoxLayout(layer);
+    QGridLayout* layout = new QGridLayout(layer);
 
     QComboBox* dataStructSelector = new QComboBox(layer);
     dataStructSelector->addItems({"Binary tree"});
-    layout->addWidget(dataStructSelector);
+
+    layout->addWidget(dataStructSelector, 0, 1);
 
     BinaryTreeVisualization* binTreeVis = new BinaryTreeVisualization(this);
-    layout->addWidget(binTreeVis, 1);
+    layout->addWidget(binTreeVis, 1, 1, 2, 1);
 
     QPushButton* generateBtn = new QPushButton("Generate", layer);
-    layout->addWidget(generateBtn);
+    layout->addWidget(generateBtn, 2, 1);
+
+    CodeEditorWidget* codeEditor = new CodeEditorWidget(this);
+    layout->addWidget(codeEditor, 0, 0, 2, 1);
+
 
     connect(generateBtn, &QPushButton::clicked, [this, binTreeVis]{
 

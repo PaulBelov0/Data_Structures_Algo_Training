@@ -10,8 +10,15 @@
 #include <QTimer>
 #include <QFile>
 #include <QDir>
+#include <QTemporaryFile>
+#include <QCoreApplication>
+#include <QThread>
+#include <QDebug>
+#include <QStandardPaths>
 
-// Структуры данных LSP
+
+// DON'T TOUCH !!!!!
+
 struct LSPPosition {
     int line;
     int character;
@@ -117,12 +124,14 @@ public:
     void requestCompletion(const QString& filePath, int line, int character);
     void requestSignatureHelp(const QString& filePath, int line, int character);
     void requestHover(const QString& filePath, int line, int character);
-    void requestDefinition(const QString& filePath, int line, int character);
-    void requestReferences(const QString& filePath, int line, int character);
+
+    void requestDefinition(const QString& filePath, int line, int character) {}; //todo
+    void requestReferences(const QString& filePath, int line, int character) {}; //todo
+    void requestFormatting(const QString& filePath) {}; //todo
+
     void requestDocumentSymbols(const QString& filePath);
     void requestWorkspaceSymbols(const QString& query);
     void requestCodeAction(const QString& filePath, const LSPRange& range);
-    void requestFormatting(const QString& filePath);
     void requestRename(const QString& filePath, int line, int character, const QString& newName);
 
     // Настройки
@@ -178,11 +187,16 @@ protected:
     // Обработка специфичных сообщений
     void processCompletionResponse(int requestId, const QJsonObject& result);
     void processDiagnostics(const QJsonObject& params);
+    void parseMessage(const QJsonObject& message);
+
+    QString m_rootPath;
+    Language m_language;
+    QString m_serverPath;
 
 private slots:
     void onProcessReadyRead();
-    void onProcessErrorOccurred(QProcess::ProcessError error);
-    void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
+    void onProcessErrorOccurred(QProcess::ProcessError error) {};
+    void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus) {};
     void onInitializeTimeout();
     void onKeepAliveTimeout();
 
@@ -197,9 +211,6 @@ private:
 
     QProcess* m_process;
     State m_state;
-    Language m_language;
-    QString m_rootPath;
-    QString m_serverPath;
     QStringList m_serverArgs;
     QJsonObject m_initOptions;
     QString m_errorString;

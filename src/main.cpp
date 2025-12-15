@@ -8,8 +8,7 @@ int main(int argc, char *argv[])
     QApplication a(argc, argv);
     qDebug() << "Available styles:" << QStyleFactory::keys();
 
-    // Установим стиль Fusion (он хорошо поддерживает кастомные виджеты)
-    // a.setStyle(QStyleFactory::create("Fusion"));
+    // a.setStyle(QStyleFactory::create("windowsvista"));
     MainWindow w;
     w.show();
     return a.exec();
