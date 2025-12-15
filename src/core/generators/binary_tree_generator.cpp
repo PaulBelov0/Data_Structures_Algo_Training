@@ -4,14 +4,14 @@
 
 BinaryTreeGenerator::BinaryTreeGenerator(QObject* parent)
     : QObject(parent)
-{
-}
+{}
 
 BinaryTree* BinaryTreeGenerator::generateTree(BinaryTreeType type, int nodeCount, bool allowDuplicates)
 {
     BinaryTree* tree = nullptr;
 
-    switch (type) {
+    switch (type)
+    {
     case Random:
         tree = generateRandomTree(nodeCount, allowDuplicates);
         break;
@@ -23,7 +23,8 @@ BinaryTree* BinaryTreeGenerator::generateTree(BinaryTreeType type, int nodeCount
         break;
     }
 
-    if (tree) {
+    if (tree)
+    {
         emit treeGenerated(tree);
     }
 
@@ -51,7 +52,8 @@ BinaryTree* BinaryTreeGenerator::generateLeftHeavyTree(int nodeCount, bool allow
     std::sort(values.begin(), values.end(), std::greater<int>());
 
     BinaryTree* tree = new BinaryTree(this);
-    for (int value : values) {
+    for (int value : values)
+    {
         tree->insert(value);
     }
 
@@ -64,7 +66,8 @@ BinaryTree* BinaryTreeGenerator::generateRightHeavyTree(int nodeCount, bool allo
     std::sort(values.begin(), values.end());
 
     BinaryTree* tree = new BinaryTree(this);
-    for (int value : values) {
+    for (int value : values)
+    {
         tree->insert(value);
     }
 
